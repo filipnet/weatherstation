@@ -20,6 +20,7 @@ const char *mqttUser = MQTT_USERNAME;
 const char *mqttPassword = MQTT_PASSWORD;
 const char *mqttID = MQTT_ID;
 const int measurementInterval = MEASUREMENT_INTERVAL;
+const int reedPin = REED_PIN;
 
 unsigned long heartbeat_previousMillis = 0;
 const long heartbeat_interval = HEARTBEAT_INTERVALL;
@@ -53,6 +54,7 @@ void setup() {
   Serial.printf("Sketch size: %u\n", ESP.getSketchSize());
   Serial.printf("Free size: %u\n", ESP.getFreeSketchSpace());
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(reedPin, INPUT_PULLUP);
   espClient.setInsecure();
   reconnect();
   initializeMux();
@@ -151,7 +153,8 @@ void loop() {
   mqttloop();
   reconnect();
   heartbeat();
-  
+  readsensor_raingauge();
+
   now = millis();
   if (now - lastMeasure > measurementInterval) {
     lastMeasure = now;
@@ -216,8 +219,32 @@ void readsensor_ldr() {
   delay(100);
 }
 
-void readsensor_bme280()
-{
+int PulseState;                       // the current reading from the input pin
+int lastPulseState = HIGH;            // the previous reading from the input pin
+unsigned long lastDebounceTime = 0;   // the last time the output pin was toggled
+unsigned long debounceDelay = 100;    // the debounce time; increase if the output flickers
+
+void readsensor_raingauge() {
+  int pulse = digitalRead(REED_PIN);
+  if (pulse != lastPulseState) {
+    lastDebounceTime = millis();
+    if (PulseState == HIGH) {
+        Serial.println("Rain gauge pulse");
+        Serial.print("  MQTT publish home/outdoor/weather/raingauge/pulse: ");
+        Serial.println("pulse");
+        client.publish("home/outdoor/weather/raingauge/pulse", "pulse", false);
+        delay(100);
+      }
+  }
+  if ((millis() - lastDebounceTime) > debounceDelay) {
+    if (pulse != PulseState) {
+      PulseState = pulse;
+     }
+  }
+  lastPulseState = pulse;
+}
+
+void readsensor_bme280() {
   float t = bme.readTemperature();
   Serial.print("Temperature: ");
   Serial.print(t);

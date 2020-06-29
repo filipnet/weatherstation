@@ -5,6 +5,8 @@ Your personal weather station with an Arduino D1 Mini MQTT and Node-RED
 <img src="images/wetter-dot-com-logo.png" alt="Wetter.com Logo" width="200" align="right"/>
 Proud to be part of the "Wetter.com Network" with weather station 19782. (https://netzwerk.wetter.com/wetterstation/19782/)
 
+Further information about this project can be found on my website: https://www.filipnet.de/weatherstation/
+
 <!-- TOC -->
 
 - [WeatherStation](#weatherstation)
@@ -21,13 +23,19 @@ Proud to be part of the "Wetter.com Network" with weather station 19782. (https:
         - [PINOUT](#pinout)
         - [CONNECTION BRIDGE](#connection-bridge)
         - [LIBRARIES](#libraries)
+    - [PRECIPITATION GAUGE](#precipitation-gauge)
+        - [HARDWARE](#hardware)
+        - [REED SWITCH HOOKUP GUIDE](#reed-switch-hookup-guide)
+        - [REMOVE FLICKERING](#remove-flickering)
+        - [CALIBRATION](#calibration)
+        - [CALCULATE PRECIPITATION IN NODE-RED](#calculate-precipitation-in-node-red)
+    - [MQTT TOPICS](#mqtt-topics)
     - [DIRECTORIES AND FILES](#directories-and-files)
     - [AUTOMATION WITH NODE-RED](#automation-with-node-red)
         - [PLUGIN REQUIREMENTS](#plugin-requirements)
         - [NODE-RED FLOW](#node-red-flow)
         - [POLLINATION](#pollination)
-        - [MQTT TOPICS](#mqtt-topics)
-    - [UPCOMING DEVELOPMENTS IN THIS PROJECT](#upcoming-developments-in-this-project)
+    - [UPCOMING AND EXPIRED DEVELOPMENTS IN THIS PROJECT](#upcoming-and-expired-developments-in-this-project)
     - [LICENSE](#license)
 
 <!-- /TOC -->
@@ -45,6 +53,7 @@ Proud to be part of the "Wetter.com Network" with weather station 19782. (https:
     - Humidity in %
     - Air pressure in hPa
     - Brightness in %
+    - Precipitation in litres
 
 ## REQUIREMENTS
 
@@ -127,6 +136,8 @@ To avoid condensation and damage to the sensor, it is located in a weatherproof 
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | Z | A0 | A0 | Analog PIN |
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | VCC | 5.0 V | - | left side |
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | GND | GND | - | right side |
+| Rain Gauge | PIN1/2 | D5 | - | - |
+| Rain Gauge | PIN2/2 | GND | - | - |
 | Arduino D1-Mini | RST | D0 | GPIO16 | Deep sleep reset bridge if you would like to activate |
 
 ### CONNECTION BRIDGE
@@ -151,12 +162,87 @@ To avoid condensation and damage to the sensor, it is located in a weatherproof 
 - Adafruit BME280 Library by Adafruit
 - Adafruit Unified Sensor by Adafruit
 
+## PRECIPITATION GAUGE
+
+A precipitation gauge or rain gauge is an instrument for measuring the precipitation that has fallen during a certain time interval.
+
+The rain is collected via a collecting tray or a funnel and fed to the rocker system. With each filling of one side of the rocker the rocker is tilted and a reed contact is activated by means of a magnet. The number of rocker movements is the measure for the amount of rain and is counted by the ATmega using an interrupt routine.
+
+The measurement is simple but depends on the type of rain, drizzle, fine mist or even frozen (snow). The luffing system therefore also has limits. Information on the strengths and weaknesses of the precipitation measurement methods can be found at https://de.wikipedia.org/wiki/Niederschlagsmesser. The location of the rain gauge also has an influence: https://www.wetterstation.net/regenmesser-aufstellen/.
+
+### HARDWARE
+
+https://www.amazon.de/MISOL-weather-Ersatzteil-Wetterstation-Manometer/dp/B00QDMBXUA
+
+To connect the rain gauge with the arduino without cutting off the RJ45-connector, build your own adapter, in this case out of an old ADSL-modem.
+
+<img src="images/weatherstation_rain_gauge.jpg" alt="Rain Gauge" height="400"/>
+<img src="images/weatherstation_rain_gauge_rj11.jpg" alt="Rain Gauge RJ11 Connector" height="400"/>
+
+### REED SWITCH HOOKUP GUIDE
+
+Reed switches are magnetically-actuated electrical switches (not magically-actuated, though it seems that way sometimes). When the body of the switch is exposed to a magnetic field - like a magnet or even a strong electrical current - two ferrous materials inside pull together, the connection closes, and current can flow. In absence of a magnetic field, the switch opens as does the circuit it's a part of.
+
+Insert the reed switch (rain gauge). Then use jumper wires to connect one end of the switch to ground and the other end to the Arduino's digital pin. Use the Arduino's internal pull-up resistor 
+```
+void setup() {
+    pinMode(REED_PIN, INPUT_PULLUP);
+}
+```
+on Arduino digital pin to bias the switch high. When the switch closes, it will connect directly to ground, and it should read low.
+
+### REMOVE FLICKERING
+
+Unfortunately the reed contact does not outputs only one signal per motion. You should avoid this with a function. See function ```readsensor_raingauge()``` in main code.
+
+### CALIBRATION
+
+Run at least 100 ml of water slowly through the measuring system and let the ticks count. Larger amounts of water, e.g. 300 ml, increase the accuracy. 
+
+Instead of listing the individual calculation steps here, I have created an Excel calculation table, which can also be found in the repository: ```rain-gauge-calibration.xlsx```
+
+<img src="images/weatherstation_rain_gauge_calibration_excel.jpg" alt="Rain Gauge calibration with Excel" width="300"/>
+		
+- Constant rain = over 30 litres per square metre in 24 hours		
+- Heavy rain = over 15 litres per square metre in 1 hour or over 20 litres per square metre in 6 hours		
+
+### CALCULATE PRECIPITATION IN NODE-RED
+
+<img src="images/weatherstation_rain_gauge_nodered_flow.jpg" alt="Rain Gauge Node-RED flow" width="900"/>
+
+How does it works (step bar step)
+- Receive **pulse** by mqtt-in node
+- Limiting the number of pulses per second (optional)
+- "pulse count"-function that counts the number of pulses, the number of counts is the return value
+    - "Detection of incipient rain" will give you a notification and sets the flow-variable "start" to current date
+- "Watchdog"-function, which returns **off** if no count value is received for 15 minutes (corresponds to: rain over)
+- "Calculation precipitation"-function calculates on the basis of the count value the number in litres for the **last rain period**
+    - Following functions are used to write *timestamp,start of rain,stop of rain, value of precipitation* inside a database
+    - The "reset-counter"-function will reset the "pulse-count"-flow-variable to NULL
+- Afterwards, a database query based on the timestamp for the last 12 hours is always executed at 7:00 a.m.  and 7:00 p.m., the sum of the precipitation values is returned, rounded (two decimal) and a notification is sent by telegram or what ever you want
+
+You will find the complete Node-RED flow  ``` flows-raingauge-precipitation.json ``` inside this repository
+
+## MQTT TOPICS
+
+| MQTT Topic | Description | Possible values |
+| --- | --- | --- |
+| home/outdoor/weather/temperature | Sensor result temperature in *C | {value} |
+| home/outdoor/weather/humidity | Sensor result humidity in % (percent) | {value} |
+| home/outdoor/weather/pressure | Sensor result Pressure in hPa (hectopascal) | {value} |
+| home/outdoor/weather/altitude | Sensor result approx altitude in m (meter) | {value} |
+| home/outdoor/weather/brightness/raw | Sensor result brightness | {value} min. 21 = bright, max. 864 = dark |
+| home/outdoor/weather/raingauge/pulse | Sensor pulse rain gauge | pulse |
+| home/outdoor/weather/heartbeat | Heartbeat for troubleshooting | on |
+
 ## DIRECTORIES AND FILES
 
 - src/WeatherStation.ino - The main programm code
 - src/config.h - GPIO configuration, definition of threshold values, etc.
 - src/credentials.h.sample - Sample configuration file for WiFi and MQTT credentials (please rename to secrets.h)
 - README.md - The manual for this Arduino Script
+- DEVELOPMENT.md - Development (non-productive) parts of this project
+- EXPIRED.md - No longer productive components of this project
 - LICENSE - The license notes for this Arduino script
 - platformio.ini - Wemos D1 Mini Configuration for PlatformIO
 
@@ -176,21 +262,11 @@ An example of a flow can be found in **flows.json** in the github repository.
 
 If you are interested about pollination, take a look at this GitHub repository: https://github.com/filipnet/nodered-dwd-pollination
 
-### MQTT TOPICS
-
-| MQTT Topic | Description | Possible values |
-| --- | --- | --- |
-| home/outdoor/weather/temperature | Sensor result temperature in *C | {value} |
-| home/outdoor/weather/humidity | Sensor result humidity in % (percent) | {value} |
-| home/outdoor/weather/pressure | Sensor result Pressure in hPa (hectopascal) | {value} |
-| home/outdoor/weather/altitude | Sensor result approx altitude in m (meter) | {value} |
-| home/outdoor/weather/brightness/raw | Sensor result brightness | {value} min. 21 = bright, max. 864 = dark |
-| home/outdoor/weather/rain/raw | Sensor result rain | {value} |
-| home/outdoor/weather/heartbeat | Heartbeat for troubleshooting | on |
-
-## UPCOMING DEVELOPMENTS IN THIS PROJECT
+## UPCOMING AND EXPIRED DEVELOPMENTS IN THIS PROJECT
 
 [For reading about upcoming developments in this project](DEVELOPMENT.md)
+
+[For reading about expired/outdated elements in this project](EXPIRED.md)
 
 ## LICENSE
 

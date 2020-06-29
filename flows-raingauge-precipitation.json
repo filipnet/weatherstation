@@ -1,0 +1,530 @@
+[
+    {
+        "id": "3684b45.413574c",
+        "type": "mqtt in",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "topic": "home/outdoor/weather/raingauge/pulse",
+        "qos": "0",
+        "datatype": "utf8",
+        "broker": "89c47141.2fd35",
+        "x": 310,
+        "y": 2520,
+        "wires": [
+            [
+                "95976ec.fcf3f9"
+            ]
+        ]
+    },
+    {
+        "id": "ae513669.917a68",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "Inserting data into database",
+        "func": "var tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds\nvar localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);\n\nvar start = flow.get('fv_raingauge_pulse_count_start');\n\nstop = (new Date(Date.now()));\nstop.setMinutes (stop.getMinutes() - 15 );\nstop = stop.toISOString().slice(0, -1);\n\nvar out = \"INSERT INTO home_outdoor_weather_precipitation (timestamp,topic,start,stop,data)\";\nout = out + \"VALUES ('\" + localISOTime + \"','\" + msg.topic + \"','\" + start + \"','\" + stop + \"','\" + msg.payload + \"');\";\nmsg.topic=out;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1340,
+        "y": 2560,
+        "wires": [
+            [
+                "846ba473.fdeb28"
+            ]
+        ]
+    },
+    {
+        "id": "846ba473.fdeb28",
+        "type": "mysql",
+        "z": "16301b4b.b91415",
+        "mydb": "fec2bc88.4f567",
+        "name": "",
+        "x": 1570,
+        "y": 2560,
+        "wires": [
+            [
+                "7337c6ab.55bea8"
+            ]
+        ]
+    },
+    {
+        "id": "98441706.94dd28",
+        "type": "mysql",
+        "z": "16301b4b.b91415",
+        "mydb": "fec2bc88.4f567",
+        "name": "",
+        "x": 430,
+        "y": 2800,
+        "wires": [
+            [
+                "ce0d062.4a68df8"
+            ]
+        ]
+    },
+    {
+        "id": "ef96342f.c1bc78",
+        "type": "template",
+        "z": "16301b4b.b91415",
+        "name": "sum precipitation data",
+        "field": "topic",
+        "fieldType": "msg",
+        "format": "yaml",
+        "syntax": "plain",
+        "template": "SELECT SUM(data)\nFROM home_outdoor_weather_precipitation \nWHERE timestamp >= NOW() - INTERVAL 12 HOUR \nORDER BY TIMESTAMP ASC;",
+        "output": "str",
+        "x": 440,
+        "y": 2760,
+        "wires": [
+            [
+                "98441706.94dd28"
+            ]
+        ]
+    },
+    {
+        "id": "6859b110.0aa7",
+        "type": "mqtt out",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "topic": "home/outdoor/weather/rain/status",
+        "qos": "2",
+        "retain": "true",
+        "broker": "89c47141.2fd35",
+        "x": 1320,
+        "y": 2660,
+        "wires": []
+    },
+    {
+        "id": "262f3b57.fc1294",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "Detection of incipient rain",
+        "func": "var tzoffset = (new Date()).getTimezoneOffset() * 60000; //offset in milliseconds\nvar localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);\n\nif (msg.payload == 2 ){\n    flow.set('fv_raingauge_pulse_count_start',localISOTime);\n    msg.payload = \"on\";\n    return msg;\n}\nelse if (msg.payload < 2){\n    msg.payload = \"off\";\n    return msg;\n}",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 770,
+        "y": 2620,
+        "wires": [
+            [
+                "e80d4905.c58ac8"
+            ]
+        ]
+    },
+    {
+        "id": "c824a851.4ed3a8",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "msg.payload to telegram",
+        "func": "msg.payload = {\n    chatId : '-396221247', \n    type : 'message', \n    content : \"Achtung, einsetzender Regen\",\n    options : {\n        disable_notification: false\n    }\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1290,
+        "y": 2720,
+        "wires": [
+            [
+                "ecaaf2a.68f6b1",
+                "1bfc02d3.98401d"
+            ]
+        ]
+    },
+    {
+        "id": "1bfc02d3.98401d",
+        "type": "telegram sender",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "bot": "da14e081.e1382",
+        "x": 1610,
+        "y": 2760,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "9551ed69.7ada",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "Calculation precipitation",
+        "func": "var precipitation_count = flow.get('fv_raingauge_pulse_count');\nwater_per_pulse = 0.1626; // in millilitre\n\nprecipitation = (precipitation_count * water_per_pulse) /1000; //in litre\nmsg.payload = precipitation;\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1030,
+        "y": 2560,
+        "wires": [
+            [
+                "8de86b21.2b0318",
+                "6afcfb2c.ff62c4",
+                "ae513669.917a68"
+            ]
+        ]
+    },
+    {
+        "id": "e80d4905.c58ac8",
+        "type": "switch",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "off",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "on",
+                "vt": "str"
+            },
+            {
+                "t": "gte",
+                "v": "0.01",
+                "vt": "num"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 1070,
+        "y": 2700,
+        "wires": [
+            [
+                "6859b110.0aa7"
+            ],
+            [
+                "c824a851.4ed3a8",
+                "6859b110.0aa7"
+            ],
+            [
+                "e846577.c5e6aa8"
+            ]
+        ]
+    },
+    {
+        "id": "ecaaf2a.68f6b1",
+        "type": "debug",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 1590,
+        "y": 2720,
+        "wires": []
+    },
+    {
+        "id": "edb5d1be.55221",
+        "type": "inject",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "topic": "",
+        "payload": "reset",
+        "payloadType": "str",
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 1090,
+        "y": 2600,
+        "wires": [
+            [
+                "6afcfb2c.ff62c4"
+            ]
+        ]
+    },
+    {
+        "id": "6afcfb2c.ff62c4",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "reset counter",
+        "func": "count = 0;\nflow.set('fv_raingauge_pulse_count',count);",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1290,
+        "y": 2600,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "95976ec.fcf3f9",
+        "type": "delay",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "pauseType": "rate",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "x": 360,
+        "y": 2560,
+        "wires": [
+            [
+                "e1490b24.c11d08"
+            ]
+        ]
+    },
+    {
+        "id": "e1490b24.c11d08",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "pulse count",
+        "func": "var count = flow.get('fv_raingauge_pulse_count')||0;\nnode.status({text:\"pulse count: \"+count})\ncount++;\nflow.set('fv_raingauge_pulse_count',count);\nmsg.payload = count;\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 550,
+        "y": 2560,
+        "wires": [
+            [
+                "9d65d982.07c788",
+                "262f3b57.fc1294"
+            ]
+        ]
+    },
+    {
+        "id": "9d65d982.07c788",
+        "type": "trigger",
+        "z": "16301b4b.b91415",
+        "op1": "",
+        "op2": "off",
+        "op1type": "nul",
+        "op2type": "str",
+        "duration": "15",
+        "extend": true,
+        "units": "min",
+        "reset": "",
+        "bytopic": "all",
+        "name": "Watchdog 15 Minutes",
+        "x": 760,
+        "y": 2560,
+        "wires": [
+            [
+                "9551ed69.7ada",
+                "e80d4905.c58ac8"
+            ]
+        ]
+    },
+    {
+        "id": "8de86b21.2b0318",
+        "type": "debug",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 1295,
+        "y": 2520,
+        "wires": []
+    },
+    {
+        "id": "7337c6ab.55bea8",
+        "type": "debug",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 1755,
+        "y": 2560,
+        "wires": []
+    },
+    {
+        "id": "5ff766d0.f6a078",
+        "type": "inject",
+        "z": "16301b4b.b91415",
+        "name": "07:00",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "00 07 * * *",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 222,
+        "y": 2740,
+        "wires": [
+            [
+                "ef96342f.c1bc78"
+            ]
+        ]
+    },
+    {
+        "id": "26566be2.c80f04",
+        "type": "debug",
+        "z": "16301b4b.b91415",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 1050,
+        "y": 2800,
+        "wires": []
+    },
+    {
+        "id": "ce0d062.4a68df8",
+        "type": "change",
+        "z": "16301b4b.b91415",
+        "name": "array2value + delete topic",
+        "rules": [
+            {
+                "t": "move",
+                "p": "payload[0][\"SUM(data)\"]",
+                "pt": "msg",
+                "to": "payload",
+                "tot": "msg"
+            },
+            {
+                "t": "delete",
+                "p": "topic",
+                "pt": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 650,
+        "y": 2800,
+        "wires": [
+            [
+                "6bcbd4f0.80161c"
+            ]
+        ]
+    },
+    {
+        "id": "6bcbd4f0.80161c",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "round + set fv",
+        "func": "precipitation_last_24h = msg.payload;\nprecipitation_last_24h = +precipitation_last_24h.toFixed(2);\nflow.set('fv_precipitation_last_24h',precipitation_last_24h);\nmsg.payload = precipitation_last_24h;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 860,
+        "y": 2800,
+        "wires": [
+            [
+                "26566be2.c80f04",
+                "e80d4905.c58ac8"
+            ]
+        ]
+    },
+    {
+        "id": "e846577.c5e6aa8",
+        "type": "function",
+        "z": "16301b4b.b91415",
+        "name": "msg.payload to telegram",
+        "func": "precipitation_last_24h = msg.payload;\n\nmsg.payload = {\n    chatId : '-396221247', \n    type : 'message', \n    content : \"Niederschlag der letzten 12h beträgt \"+precipitation_last_24h+\" Liter pro m²\",\n    options : {\n        disable_notification: true\n    }\n}\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1290,
+        "y": 2760,
+        "wires": [
+            [
+                "ecaaf2a.68f6b1",
+                "1bfc02d3.98401d"
+            ]
+        ]
+    },
+    {
+        "id": "47f44749.86c158",
+        "type": "inject",
+        "z": "16301b4b.b91415",
+        "name": "19:00",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "repeat": "",
+        "crontab": "00 19 * * *",
+        "once": false,
+        "onceDelay": 0.1,
+        "x": 222,
+        "y": 2780,
+        "wires": [
+            [
+                "ef96342f.c1bc78"
+            ]
+        ]
+    },
+    {
+        "id": "89c47141.2fd35",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "mqtt.tld.de",
+        "broker": "mqtt.tld.de",
+        "port": "8883",
+        "tls": "dab1e87b.a61058",
+        "clientid": "nodered",
+        "usetls": true,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": ""
+    },
+    {
+        "id": "fec2bc88.4f567",
+        "type": "MySQLdatabase",
+        "z": "",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "db_tld_de",
+        "tz": ""
+    },
+    {
+        "id": "da14e081.e1382",
+        "type": "telegram bot",
+        "z": "",
+        "botname": "Botname",
+        "usernames": "",
+        "chatids": "-99999999999",
+        "baseapiurl": "",
+        "pollinterval": "300",
+        "usesocks": false,
+        "sockshost": "",
+        "socksport": "",
+        "socksusername": "",
+        "sockspassword": "",
+        "bothost": "",
+        "localbotport": "",
+        "publicbotport": "",
+        "privatekey": "",
+        "certificate": "",
+        "useselfsignedcertificate": false,
+        "verboselogging": false
+    },
+    {
+        "id": "dab1e87b.a61058",
+        "type": "tls-config",
+        "z": "",
+        "name": "",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "servername": "",
+        "verifyservercert": false
+    }
+]
