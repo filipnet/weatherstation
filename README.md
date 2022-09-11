@@ -18,7 +18,7 @@ Further information about this project can be found on my website: https://www.f
         - [BOARD FOR AC-DC TRANSFORMATOR](#board-for-ac-dc-transformator)
         - [BOARD FOR ARDUINO AND MULTILTUPLEXER](#board-for-arduino-and-multiltuplexer)
         - [BOARD FOR SENSORS](#board-for-sensors)
-        - [PROTECTION OF BME280](#protection-of-bme280)
+        - [PROTECTION OF BME280 DEPRICATED](#protection-of-bme280-depricated)
     - [INSTALL AND USAGE](#install-and-usage)
         - [PINOUT](#pinout)
         - [CONNECTION BRIDGE](#connection-bridge)
@@ -105,7 +105,10 @@ The concept is similar to the "Arduino and multiplexer board" again:
 
 <img src="images/weatherstation_gen2_sensor_diagonal.jpg" alt="Board sensors diagonal" width="400"/><img src="images/weatherstation_gen2_sensor_top.jpg" alt="Board sensors top" width="400"/>
 
-### PROTECTION OF BME280
+### PROTECTION OF BME280 (DEPRICATED)
+
+> **⚠ WARNING, IMPORTANT NOTICE BEFORE USE**  
+> The BME280 (very good for indoor use) has not proven practical outdoors despite Teflon protection. The humidity sensor of the BME280 is defective after one winter. In another project, a FS200-SHT10 soil temperature and humidity sensor was used, which is suitable for high humidities up to 100% and has so far performed very well despite the "tropical climate". For this reason, the BME280 is only used in this project to determine the air pressure.
 
 To avoid condensation and damage to the sensor, it is located in a weatherproof but air-permeable case. I covered the BME280 sensor with PTFE tape. This Teflon-based tape is usually used to seal threads and is available in DIY stores. Teflon is permeable to water vapor, while it protects the sensor from pollen, dirt particles and insects.  
 
@@ -138,6 +141,10 @@ To avoid condensation and damage to the sensor, it is located in a weatherproof 
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | GND | GND | - | right side |
 | Rain Gauge | PIN1/2 | D5 | - | - |
 | Rain Gauge | PIN2/2 | GND | - | - |
+| FS200-SHT10 soil temperature and humidity sensor | VCC (RED) | 3.3 V | - |
+| FS200-SHT10 soil temperature and humidity sensor | GND (BLACK) | GND | - |
+| FS200-SHT10 soil temperature and humidity sensor | SDA (GREEN) | D2 | GPIO 04 |
+| FS200-SHT10 soil temperature and humidity sensor | SCK/SCL (YELLOW) | D1 | GPIO 05 |
 | Arduino D1-Mini | RST | D0 | GPIO16 | Deep sleep reset bridge if you would like to activate |
 
 ### CONNECTION BRIDGE

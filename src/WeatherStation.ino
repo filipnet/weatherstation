@@ -72,7 +72,7 @@ void reconnect() {
 
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
+      delay(50);
       Serial.print(".");
     }
     Serial.println();
@@ -80,7 +80,10 @@ void reconnect() {
     Serial.print("  SSID: ");
     Serial.print(ssid);
     Serial.print(" / Channel: ");
-    Serial.println(WiFi.channel());
+    Serial.print(WiFi.channel());
+    Serial.print(" / RSSI: ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
     Serial.print("  IP Address: ");
     Serial.print(WiFi.localIP());
     Serial.print(" / Subnet Mask: ");
@@ -96,23 +99,26 @@ void reconnect() {
     // https://pubsubclient.knolleary.net/api.html
     client.setServer(mqttServer, mqttPort);
     client.setCallback(callback);
-    Serial.println("Connecting to MQTT broker");
-    Serial.print("  MQTT Server: ");
+    Serial.print("Connecting to MQTT broker: ");
     Serial.println(mqttServer);
-    Serial.print("  MQTT Port: ");
-    Serial.println(mqttPort);
-    Serial.print("  MQTT Username: ");
-    Serial.println(mqttUser);
-    Serial.print("  MQTT Identifier: ");
-    Serial.println(mqttID);
-    Serial.println("");
 
     while (!client.connected()) {
+      delay(50);
+      Serial.print(".");      
       if (client.connect(mqttID, mqttUser, mqttPassword)) {
-       Serial.println("Connected to MQTT broker");
-       Serial.println("");
-       digitalWrite(LED_BUILTIN, HIGH); 
-       } else {
+        Serial.println();
+        Serial.println("Connected to MQTT broker");
+        Serial.print("  MQTT Server: ");
+        Serial.println(mqttServer);
+        Serial.print("  MQTT Port: ");
+        Serial.println(mqttPort);
+        Serial.print("  MQTT Username: ");
+        Serial.println(mqttUser);
+        Serial.print("  MQTT Identifier: ");
+        Serial.println(mqttID);
+        Serial.println("");
+        digitalWrite(LED_BUILTIN, HIGH); 
+      } else {
         Serial.print("Connection to MQTT broker failed with state: ");
         Serial.println(client.state());
         char puffer[100];
