@@ -172,6 +172,7 @@ void loop() {
     lastMeasure = now;
     readsensor_ldr();
     readsensor_bme280();
+    void readsensor_sht10();
     Serial.println("");
   }
 }
@@ -309,9 +310,9 @@ void readsensor_sht10() {
   Serial.println(" *C");
   static char temperature_local_char[7];
   dtostrf(temperature_local, 1, 2, temperature_local_char);
-  Serial.print("  MQTT publish home/outdoor/greenhouse/temperature: ");
+  Serial.print("  MQTT publish home/outdoor/weather/temperature: ");
   Serial.println(temperature_local_char);
-  client.publish("home/outdoor/greenhouse/temperature", temperature_local_char, true);
+  client.publish("home/outdoor/weather/temperature", temperature_local_char, true);
   delay(100);
 
   humidity_local = sht1x.readHumidity();
@@ -320,8 +321,8 @@ void readsensor_sht10() {
   Serial.println(" %");
   static char humidity_local_char[7];
   dtostrf(humidity_local, 1, 2, humidity_local_char);
-  Serial.print("  MQTT publish home/outdoor/greenhouse/humidity: ");
+  Serial.print("  MQTT publish home/outdoor/weather/humidity: ");
   Serial.println(humidity_local_char);
-  client.publish("home/outdoor/greenhouse/humidity", humidity_local_char, true);
+  client.publish("home/outdoor/weather/humidity", humidity_local_char, true);
   delay(100);
 }
