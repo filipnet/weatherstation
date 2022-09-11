@@ -264,9 +264,9 @@ void readsensor_bme280() {
   Serial.println(" *C");
   static char temperatureTemp[7];
   dtostrf(t, 6, 2, temperatureTemp);
-  Serial.print("  MQTT publish home/outdoor/weather/temperature: ");
-  Serial.println(temperatureTemp);
-  client.publish("home/outdoor/weather/temperature", temperatureTemp, true);
+  //Serial.print("  MQTT publish home/outdoor/weather/temperature: ");
+  //Serial.println(temperatureTemp);
+  //client.publish("home/outdoor/weather/temperature", temperatureTemp, true);
   delay(100);
 
   float h = bme.readHumidity();
@@ -275,9 +275,9 @@ void readsensor_bme280() {
   Serial.println(" %");
   static char humidityTemp[7];
   dtostrf(h, 6, 2, humidityTemp);
-  Serial.print("  MQTT publish home/outdoor/weather/humidity: ");
-  Serial.println(humidityTemp);
-  client.publish("home/outdoor/weather/humidity", humidityTemp, true);
+  //Serial.print("  MQTT publish home/outdoor/weather/humidity: ");
+  //Serial.println(humidityTemp);
+  //client.publish("home/outdoor/weather/humidity", humidityTemp, true);
   delay(100);
 
   float p = (bme.readPressure() / 100.0F);
