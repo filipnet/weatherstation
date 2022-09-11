@@ -22,6 +22,8 @@ const char *mqttPassword = MQTT_PASSWORD;
 const char *mqttID = MQTT_ID;
 const int measurementInterval = MEASUREMENT_INTERVAL;
 const int reedPin = REED_PIN;
+const int dataPin = SDA_PIN;
+const int clockPin = SCL_PIN;
 
 // Define global variables 
 unsigned long heartbeat_previousMillis = 0;
@@ -49,8 +51,13 @@ Adafruit_BME280 bme;         // I2C (2 wire mode)
 long now = millis();
 long lastMeasure = 0;
 
-WiFiClientSecure espClient;
-PubSubClient client(espClient);
+// default to 5.0v boards, e.g. Arduino UNO
+// SHT1x sht1x(dataPin, clockPin);
+// if 3.3v board is used (recommended)
+SHT1x sht1x(dataPin, clockPin, SHT1x::Voltage::DC_3_3v);
+
+WiFiClientSecure WiFiClient;
+PubSubClient MQTTClient(WiFiClient);
  
 void setup() {
   Serial.begin(115200);
@@ -61,14 +68,14 @@ void setup() {
   pinMode(dataPin, INPUT);
   pinMode(clockPin, INPUT);
   pinMode(reedPin, INPUT_PULLUP);
-  espClient.setInsecure();
+  WiFiClient.setInsecure();
   reconnect();
   initializeMux();
   testSensors();
 }
 
 void reconnect() {
-  while (!client.connected()) {
+  while (!MQTTClient.connected()) {
     WiFi.mode(WIFI_STA);
     WiFi.hostname(hostname);
     delay(100);
@@ -103,15 +110,15 @@ void reconnect() {
     Serial.println("");
 
     // https://pubsubclient.knolleary.net/api.html
-    client.setServer(mqttServer, mqttPort);
-    client.setCallback(callback);
+    MQTTClient.setServer(mqttServer, mqttPort);
+    MQTTClient.setCallback(callback);
     Serial.print("Connecting to MQTT broker: ");
     Serial.println(mqttServer);
 
-    while (!client.connected()) {
+    while (!MQTTClient.connected()) {
       delay(50);
       Serial.print(".");      
-      if (client.connect(mqttID, mqttUser, mqttPassword)) {
+      if (MQTTClient.connect(mqttID, mqttUser, mqttPassword)) {
         Serial.println();
         Serial.println("Connected to MQTT broker");
         Serial.print("  MQTT Server: ");
@@ -126,9 +133,9 @@ void reconnect() {
         digitalWrite(LED_BUILTIN, HIGH); 
       } else {
         Serial.print("Connection to MQTT broker failed with state: ");
-        Serial.println(client.state());
+        Serial.println(MQTTClient.state());
         char puffer[100];
-        espClient.getLastSSLError(puffer,sizeof(puffer));
+        WiFiClient.getLastSSLError(puffer,sizeof(puffer));
         Serial.print("TLS connection failed with state: ");
         Serial.println(puffer);
         Serial.println("");
@@ -140,13 +147,13 @@ void reconnect() {
 
 // Function to receive MQTT messages
 void mqttloop() {
-  if (!client.loop())
-    client.connect("ESP8266Client");
+  if (!MQTTClient.loop())
+    MQTTClient.connect(mqttID);
 }
 
 // Function to send MQTT messages
 void mqttsend(const char *_topic, const char *_data) {
-  client.publish(_topic, _data);
+  MQTTClient.publish(_topic, _data);
 }
 
 // Pointer to a message callback function called when a message arrives for a subscription created by this client.
@@ -161,7 +168,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 void loop() {
-  client.loop();
+  MQTTClient.loop();
   mqttloop();
   reconnect();
   heartbeat();
@@ -183,7 +190,7 @@ void heartbeat() {
     heartbeat_previousMillis = heartbeat_currentMillis;
     Serial.println("Send heartbeat signal to MQTT broker");
     Serial.println("");
-    client.publish("home/outdoor/weather/heartbeat", "on");
+    MQTTClient.publish("home/outdoor/weather/heartbeat", "on");
   }
 }
 
@@ -228,7 +235,7 @@ void readsensor_ldr() {
   dtostrf(b, 6, 2, brightnessTemp);
   Serial.print("  MQTT publish home/outdoor/weather/brightness/raw: ");
   Serial.println(brightnessTemp);
-  client.publish("home/outdoor/weather/brightness/raw", brightnessTemp, true);
+  MQTTClient.publish("home/outdoor/weather/brightness/raw", brightnessTemp, true);
   delay(100);
 }
 
@@ -245,7 +252,7 @@ void readsensor_raingauge() {
         Serial.println("Rain gauge pulse");
         Serial.print("  MQTT publish home/outdoor/weather/raingauge/pulse: ");
         Serial.println("pulse");
-        client.publish("home/outdoor/weather/raingauge/pulse", "pulse", false);
+        MQTTClient.publish("home/outdoor/weather/raingauge/pulse", "pulse", false);
         delay(100);
       }
   }
@@ -266,7 +273,7 @@ void readsensor_bme280() {
   dtostrf(t, 6, 2, temperatureTemp);
   //Serial.print("  MQTT publish home/outdoor/weather/temperature: ");
   //Serial.println(temperatureTemp);
-  //client.publish("home/outdoor/weather/temperature", temperatureTemp, true);
+  //MQTTClient.publish("home/outdoor/weather/temperature", temperatureTemp, true);
   delay(100);
 
   float h = bme.readHumidity();
@@ -277,7 +284,7 @@ void readsensor_bme280() {
   dtostrf(h, 6, 2, humidityTemp);
   //Serial.print("  MQTT publish home/outdoor/weather/humidity: ");
   //Serial.println(humidityTemp);
-  //client.publish("home/outdoor/weather/humidity", humidityTemp, true);
+  //MQTTClient.publish("home/outdoor/weather/humidity", humidityTemp, true);
   delay(100);
 
   float p = (bme.readPressure() / 100.0F);
@@ -288,7 +295,7 @@ void readsensor_bme280() {
   dtostrf(p, 6, 2, pressureTemp);
   Serial.print("  MQTT publish home/outdoor/weather/pressure: ");
   Serial.println(pressureTemp);
-  client.publish("home/outdoor/weather/pressure", pressureTemp, true); // Pressure (hPa)
+  MQTTClient.publish("home/outdoor/weather/pressure", pressureTemp, true); // Pressure (hPa)
   delay(100);
 
   float a = bme.readAltitude(LOCALPRESSURE_HPA);
@@ -299,7 +306,7 @@ void readsensor_bme280() {
   dtostrf(a, 6, 2, altitudeTemp);
   Serial.print("  MQTT publish home/outdoor/weather/altitude: ");
   Serial.println(altitudeTemp);
-  client.publish("home/outdoor/weather/altitude", altitudeTemp, true); // Approx altitude (m)
+  MQTTClient.publish("home/outdoor/weather/altitude", altitudeTemp, true); // Approx altitude (m)
   delay(100);
 }
 
@@ -312,7 +319,7 @@ void readsensor_sht10() {
   dtostrf(temperature_local, 1, 2, temperature_local_char);
   Serial.print("  MQTT publish home/outdoor/weather/temperature: ");
   Serial.println(temperature_local_char);
-  client.publish("home/outdoor/weather/temperature", temperature_local_char, true);
+  MQTTClient.publish("home/outdoor/weather/temperature", temperature_local_char, true);
   delay(100);
 
   humidity_local = sht1x.readHumidity();
@@ -323,6 +330,6 @@ void readsensor_sht10() {
   dtostrf(humidity_local, 1, 2, humidity_local_char);
   Serial.print("  MQTT publish home/outdoor/weather/humidity: ");
   Serial.println(humidity_local_char);
-  client.publish("home/outdoor/weather/humidity", humidity_local_char, true);
+  MQTTClient.publish("home/outdoor/weather/humidity", humidity_local_char, true);
   delay(100);
 }
