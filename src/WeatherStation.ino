@@ -54,6 +54,8 @@ void setup() {
   Serial.printf("Sketch size: %u\n", ESP.getSketchSize());
   Serial.printf("Free size: %u\n", ESP.getFreeSketchSpace());
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(dataPin, INPUT);
+  pinMode(clockPin, INPUT);
   pinMode(reedPin, INPUT_PULLUP);
   espClient.setInsecure();
   reconnect();
@@ -64,7 +66,7 @@ void setup() {
 void reconnect() {
   while (!client.connected()) {
     WiFi.mode(WIFI_STA);
-	  WiFi.hostname(hostname);
+    WiFi.hostname(hostname);
     delay(100);
     Serial.println();
     Serial.print("Connecting to WiFi: ");
@@ -293,5 +295,29 @@ void readsensor_bme280() {
   Serial.print("  MQTT publish home/outdoor/weather/altitude: ");
   Serial.println(altitudeTemp);
   client.publish("home/outdoor/weather/altitude", altitudeTemp, true); // Approx altitude (m)
+  delay(100);
+}
+
+void readsensor_sht10() {
+  temperature_local = sht1x.readTemperatureC();
+  Serial.print("Temperature: ");
+  Serial.print(temperature_local, DEC);
+  Serial.println(" *C");
+  static char temperature_local_char[7];
+  dtostrf(temperature_local, 1, 2, temperature_local_char);
+  Serial.print("  MQTT publish home/outdoor/greenhouse/temperature: ");
+  Serial.println(temperature_local_char);
+  client.publish("home/outdoor/greenhouse/temperature", temperature_local_char, true);
+  delay(100);
+
+  humidity_local = sht1x.readHumidity();
+  Serial.print("Humidity: ");
+  Serial.print(humidity_local);
+  Serial.println(" %");
+  static char humidity_local_char[7];
+  dtostrf(humidity_local, 1, 2, humidity_local_char);
+  Serial.print("  MQTT publish home/outdoor/greenhouse/humidity: ");
+  Serial.println(humidity_local_char);
+  client.publish("home/outdoor/greenhouse/humidity", humidity_local_char, true);
   delay(100);
 }
