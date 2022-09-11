@@ -1,9 +1,10 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#define MQTT_MAX_PACKET_SIZE 256
 #include <WiFiClientSecure.h>
 #include <ESP8266mDNS.h>
 #include <PubSubClient.h>
+#define MQTT_MAX_PACKET_SIZE 256
+#include <SHT1x-ESP.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <Wire.h>
@@ -22,8 +23,11 @@ const char *mqttID = MQTT_ID;
 const int measurementInterval = MEASUREMENT_INTERVAL;
 const int reedPin = REED_PIN;
 
+// Define global variables 
 unsigned long heartbeat_previousMillis = 0;
 const long heartbeat_interval = HEARTBEAT_INTERVALL;
+float temperature_local;
+float humidity_local;
 
 // Define multiplex ports
 const int selectPins[3] = {D5, D6, D7}; // S0~2, S1~3, S2~4
