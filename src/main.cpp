@@ -12,6 +12,7 @@
 #include "credentials.h"
 #include "config.h"
 
+// Define config variables 
 const char *hostname = WIFI_HOSTNAME;
 const char *ssid = WIFI_SSID;
 const char *password =  WIFI_PASSWORD;
@@ -51,13 +52,13 @@ Adafruit_BME280 bme;         // I2C (2 wire mode)
 long now = millis();
 long lastMeasure = 0;
 
+// Define classes
+WiFiClientSecure WiFiClient;
+PubSubClient MQTTClient(WiFiClient);
 // default to 5.0v boards, e.g. Arduino UNO
 // SHT1x sht1x(dataPin, clockPin);
 // if 3.3v board is used (recommended)
 SHT1x sht1x(dataPin, clockPin, SHT1x::Voltage::DC_3_3v);
-
-WiFiClientSecure WiFiClient;
-PubSubClient MQTTClient(WiFiClient);
 
 // Pointer to a message callback function called when a message arrives for a subscription created by this client.
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -70,6 +71,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.println("");
 }
 
+// Function to connect WIFI and MQTT
 void reconnect() {
   while (!MQTTClient.connected()) {
     WiFi.mode(WIFI_STA);
@@ -152,6 +154,7 @@ void mqttsend(const char *_topic, const char *_data) {
   MQTTClient.publish(_topic, _data);
 }
 
+// Function to send heartbeat mqtt message to broker
 void heartbeat() {
   unsigned long heartbeat_currentMillis = millis();
   if (heartbeat_currentMillis - heartbeat_previousMillis >= heartbeat_interval) {
@@ -182,7 +185,7 @@ void selectMuxPin(byte pin) {
   }
 }
 
-// Test sensor
+// Test sensor connectivity
 void testSensors() {
   Serial.print("Testing BME280 pressure module: ");
   if (!bme.begin(BME280_I2C_ADDR)) {
@@ -193,6 +196,7 @@ void testSensors() {
   Serial.println("");
 }
 
+// Setup system variables
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(false);
@@ -208,6 +212,7 @@ void setup() {
   testSensors();
 }
 
+// Function to read LDR sensor and return MQTT message
 void readsensor_ldr() {
   selectMuxPin(1);
   int b = (analogRead(A0));
@@ -227,6 +232,7 @@ int lastPulseState = HIGH;            // the previous reading from the input pin
 unsigned long lastDebounceTime = 0;   // the last time the output pin was toggled
 unsigned long debounceDelay = 100;    // the debounce time; increase if the output flickers
 
+// Function to read raingauge sensor and return MQTT message
 void readsensor_raingauge() {
   int pulse = digitalRead(REED_PIN);
   if (pulse != lastPulseState) {
@@ -247,6 +253,7 @@ void readsensor_raingauge() {
   lastPulseState = pulse;
 }
 
+// Function to read BME280 sensor and return MQTT message
 void readsensor_bme280() {
   float t = bme.readTemperature();
   Serial.print("Temperature: ");
@@ -293,6 +300,7 @@ void readsensor_bme280() {
   delay(100);
 }
 
+// Function to read SHT10 sensor and return MQTT message
 void readsensor_sht10() {
   temperature_local = sht1x.readTemperatureC();
   Serial.print("Temperature: ");
@@ -317,6 +325,7 @@ void readsensor_sht10() {
   delay(100);
 }
 
+// Scratch default loop
 void loop() {
   MQTTClient.loop();
   mqttloop();
