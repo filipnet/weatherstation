@@ -139,12 +139,12 @@ To avoid condensation and damage to the sensor, it is located in a weatherproof 
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | Z | A0 | A0 | Analog PIN |
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | VCC | 5.0 V | - | left side |
 | 4051 74HC4051 8-Channel-Analog-Multiplexer-Modul | GND | GND | - | right side |
-| Rain Gauge | PIN1/2 | D5 | - | - |
+| Rain Gauge | PIN1/2 | D3 | - | - |
 | Rain Gauge | PIN2/2 | GND | - | - |
-| FS200-SHT10 soil temperature and humidity sensor | VCC (RED) | 3.3 V | - |
+| FS200-SHT10 soil temperature and humidity sensor | VIN / VCC+ 3V | 3.3 V | - |
 | FS200-SHT10 soil temperature and humidity sensor | GND (BLACK) | GND | - |
-| FS200-SHT10 soil temperature and humidity sensor | SDA (GREEN) | D2 | GPIO 04 |
-| FS200-SHT10 soil temperature and humidity sensor | SCK/SCL (YELLOW) | D1 | GPIO 05 |
+| FS200-SHT10 soil temperature and humidity sensor | SDA (GREEN) | D2 | GPIO4 |
+| FS200-SHT10 soil temperature and humidity sensor | SCK/SCL (YELLOW) | D1 | GPIO5 |
 | Arduino D1-Mini | RST | D0 | GPIO16 | Deep sleep reset bridge if you would like to activate |
 
 ### CONNECTION BRIDGE
